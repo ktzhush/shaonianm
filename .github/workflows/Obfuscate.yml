@@ -28,10 +28,6 @@ jobs:
           npm install -g javascript-obfuscator
           sudo apt-get install -y unzip
 
-      - name: 移除origin文件
-        run:
-          rm -f origin.js*
-
       - name: Download and extract latest BPB worker
         run: |
           wget -O origin.js https://raw.githubusercontent.com/byJoey/cfnew/refs/heads/main/明文源吗
@@ -49,6 +45,10 @@ jobs:
           --self-defending false \
           --simplify true
           
+      - name: 移除origin文件
+        run:
+          rm -f origin.js*
+
       - name: 提交更改
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
