@@ -31,24 +31,23 @@ jobs:
 
       - name: Download and extract latest BPB worker
         run: |
-          wget -O origin.js https://raw.githubusercontent.com/byJoey/cfnew/refs/heads/main/明文源吗
+          wget -O origin.js https://raw.githubusercontent.com/yonggekkk/Cloudflare-vless-trojan/refs/heads/main/Vless_workers_pages/_worker.js
 
-      - name: Obfuscate cfnew shaonian js
+      - name: 校验下载并处理 _worker.js
         run: |
-          javascript-obfuscator origin.js --output _worker.js \
-          --compact true \
-          --identifier-names-generator hexadecimal \
-          --rename-globals true \
-          --string-array true \
-          --string-array-encoding 'base64' \
-          --string-array-threshold 0.75 \
-          --transform-object-keys true \
-          --self-defending false \
-          --simplify true
-          
-      - name: 移除origin文件
-        run:
-          rm -f origin.js*
+          # 1. 校验下载是否成功
+          if [ ! -s origin.js ]; then
+            echo "::error::下载失败，origin.js 不存在或为空"
+            exit 1
+          fi
+          echo "下载成功，文件大小：$(wc -c < origin.js) 字节"
+          # 2. 替换 UUID
+          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g' origin.js
+          # 3. 删除旧的 _worker.js
+          rm -f _worker.js
+          # 4. 重命名 origin.js 为 _worker.js
+          mv origin.js _worker.js
+          echo "处理完成，_worker.js 大小：$(wc -c < _worker.js) 字节"
 
       - name: 提交更改
         uses: stefanzweifel/git-auto-commit-action@v5
