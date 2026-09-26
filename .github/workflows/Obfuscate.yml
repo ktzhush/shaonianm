@@ -21,48 +21,16 @@ jobs:
 
       - name: 下载并处理 _worker.js
         run: |
-          # 1. 下载上游 _worker.js（带重试和超时）
           wget --tries=3 --timeout=30 -O origin.js https://raw.githubusercontent.com/yonggekkk/Cloudflare-vless-trojan/refs/heads/main/Vless_workers_pages/_worker.js
 
-          # 2. 校验下载是否成功
-          if [ ! -s origin.js ]; then
-            echo "::error::下载失败，origin.js 不存在或为空"
-            exit 1
-          fi
-          echo "下载成功，文件大小：$(wc -c < origin.js) 字节"
+          # 替换 UUID 与 proxyIPs
+          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g; s/pyip.ygkkk.dpdns.org/p.etime.vip/g' origin.js
 
-          # 3. 替换 UUID
-          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g' origin.js
+          # 校验：新值必须存在，否则中止
+          grep -q '06c30f4d-99c9-4bc6-84ce-d992213a469c' origin.js || { echo '::error::UUID 替换失败'; exit 1; }
+          grep -q 'p.etime.vip' origin.js || { echo '::error::proxyIPs 替换失败'; exit 1; }
 
-          # 4. 校验替换结果
-          if grep -q '86c50e3a-5b87-49dd-bd20-03c7f2735e40' origin.js; then
-            echo "::error::UUID 替换失败，仍存在旧 UUID"
-            exit 1
-          fi
-          if ! grep -q '06c30f4d-99c9-4bc6-84ce-d992213a469c' origin.js; then
-            echo "::error::UUID 替换失败，新 UUID 未找到"
-            exit 1
-          fi
-          echo "UUID 替换成功"
-
-          # 5. 替换 proxyIPs
-          sed -i 's/pyip\.ygkkk\.dpdns\.org/p.etime.vip/g' origin.js
-
-          # 6. 校验 proxyIPs 替换结果
-          if grep -q 'pyip\.ygkkk\.dpdns\.org' origin.js; then
-            echo "::error::proxyIPs 替换失败，仍存在旧地址"
-            exit 1
-          fi
-          if ! grep -q 'p\.etime\.vip' origin.js; then
-            echo "::error::proxyIPs 替换失败，新地址未找到"
-            exit 1
-          fi
-          echo "proxyIPs 替换成功"
-
-          # 7. 删除旧的 _worker.js，重命名 origin.js 为 _worker.js
-          rm -f _worker.js
-          mv origin.js _worker.js
-          echo "处理完成，_worker.js 大小：$(wc -c < _worker.js) 字节"
+          mv -f origin.js _worker.js
 
       - name: 提交更改
         uses: stefanzweifel/git-auto-commit-action@v7
