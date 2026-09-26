@@ -19,18 +19,49 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v7
 
-      - name: 下载并处理 _worker.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "latest"
+
+      - name: Install javascript-obfuscator
+        run: npm install -g javascript-obfuscator
+
+      - name: 下载明文并混淆 _worker.js
         run: |
-          wget --tries=3 --timeout=30 -O origin.js https://raw.githubusercontent.com/yonggekkk/Cloudflare-vless-trojan/refs/heads/main/Vless_workers_pages/_worker.js
+          # 1. 下载明文 _worker明.js
+          wget --tries=3 --timeout=30 -O origin.js https://raw.githubusercontent.com/yonggekkk/Cloudflare-vless-trojan/refs/heads/main/Vless_workers_pages/_worker%E6%98%8E.js
 
-          # 替换 UUID 与 proxyIPs
-          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g; s/pyip.ygkkk.dpdns.org/p.etime.vip/g' origin.js
+          # 2. 校验下载
+          if [ ! -s origin.js ]; then
+            echo "::error::下载失败，origin.js 不存在或为空"
+            exit 1
+          fi
+          echo "下载成功，文件大小：$(wc -c < origin.js) 字节"
 
-          # 校验：新值必须存在，否则中止
+          # 3. 替换 UUID 与 proxyIPs
+          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g; s/proxyIPs = \[""\]/proxyIPs = ["p.etime.vip"]/' origin.js
+
+          # 4. 校验替换
           grep -q '06c30f4d-99c9-4bc6-84ce-d992213a469c' origin.js || { echo '::error::UUID 替换失败'; exit 1; }
           grep -q 'p.etime.vip' origin.js || { echo '::error::proxyIPs 替换失败'; exit 1; }
 
-          mv -f origin.js _worker.js
+          # 5. 混淆
+          javascript-obfuscator origin.js --output obfuscated.js \
+            --compact true \
+            --identifier-names-generator hexadecimal \
+            --rename-globals true \
+            --string-array true \
+            --string-array-encoding 'base64' \
+            --string-array-threshold 0.75 \
+            --transform-object-keys true \
+            --self-defending false \
+            --simplify true
+
+          # 6. 删除旧文件，重命名为 _worker.js
+          rm -f origin.js _worker.js
+          mv obfuscated.js _worker.js
+          echo "混淆完成，_worker.js 大小：$(wc -c < _worker.js) 字节"
 
       - name: 提交更改
         uses: stefanzweifel/git-auto-commit-action@v7
