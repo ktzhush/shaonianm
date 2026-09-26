@@ -37,7 +37,6 @@ jobs:
             echo "::error::下载失败，origin.js 不存在或为空"
             exit 1
           fi
-          echo "下载成功，文件大小：$(wc -c < origin.js) 字节"
 
           # 3. 替换 UUID 与 proxyIPs
           sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g; s/proxyIPs = \[""\]/proxyIPs = ["p.etime.vip"]/' origin.js
@@ -46,11 +45,17 @@ jobs:
           grep -q '06c30f4d-99c9-4bc6-84ce-d992213a469c' origin.js || { echo '::error::UUID 替换失败'; exit 1; }
           grep -q 'p.etime.vip' origin.js || { echo '::error::proxyIPs 替换失败'; exit 1; }
 
-          # 5. 混淆
-          javascript-obfuscator origin.js --output obfuscated.js \
+          # 5. 拆分：配置行（不混淆）与其余代码
+          sed -n '/^let userID/p' origin.js > header.txt
+          sed -n '/^const proxyIPs/p' origin.js >> header.txt
+          sed '/^let userID/d; /^const proxyIPs/d' origin.js > body.js
+
+          # 6. 混淆其余代码，保留对 userID/proxyIPs 的引用
+          javascript-obfuscator body.js --output body_obf.js \
             --compact true \
             --identifier-names-generator hexadecimal \
             --rename-globals true \
+            --reserved-names 'userID,proxyIPs' \
             --string-array true \
             --string-array-encoding 'base64' \
             --string-array-threshold 0.75 \
@@ -58,9 +63,9 @@ jobs:
             --self-defending false \
             --simplify true
 
-          # 6. 删除旧文件，重命名为 _worker.js
-          rm -f origin.js _worker.js
-          mv obfuscated.js _worker.js
+          # 7. 拼合：明文配置 + 混淆代码
+          cat header.txt body_obf.js > _worker.js
+          rm -f origin.js body.js body_obf.js header.txt
           echo "混淆完成，_worker.js 大小：$(wc -c < _worker.js) 字节"
 
       - name: 提交更改
