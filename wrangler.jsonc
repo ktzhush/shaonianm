@@ -2,5 +2,6 @@
   "name": "wispy-boat-f7bb",
   "main": "_worker.js",
   "compatibility_date": "2026-09-01",
-  "no_bundle": true
+  "no_bundle": true,
+  "preview_urls": false
 }
