@@ -38,12 +38,11 @@ jobs:
             exit 1
           fi
 
-          # 3. 替换 UUID 与 proxyIPs
-          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g; s/proxyIPs = \[""\]/proxyIPs = ["p.etime.vip"]/' origin.js
+          # 3. 替换 UUID
+          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g' origin.js
 
           # 4. 校验替换
           grep -q '06c30f4d-99c9-4bc6-84ce-d992213a469c' origin.js || { echo '::error::UUID 替换失败'; exit 1; }
-          grep -q 'p.etime.vip' origin.js || { echo '::error::proxyIPs 替换失败'; exit 1; }
 
           # 5. 拆分：配置行（不混淆）与其余代码
           sed -n '/^let userID/p' origin.js > header.txt
