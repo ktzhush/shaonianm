@@ -1,0 +1,5 @@
+{
+  "name": "你的Worker名称",
+  "main": "_worker.js",
+  "compatibility_date": "2026-09-01"
+}
