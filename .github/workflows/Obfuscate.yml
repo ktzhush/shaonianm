@@ -19,18 +19,10 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "latest"
-
-      - name: Install javascript-obfuscator
-        run: npm install -g javascript-obfuscator
-
-      - name: 下载明文并混淆 _worker.js
+      - name: 下载并处理 _worker.js
         run: |
-          # 1. 下载明文 _worker明.js
-          wget --tries=3 --timeout=30 -O origin.js https://raw.githubusercontent.com/yonggekkk/Cloudflare-vless-trojan/refs/heads/main/Vless_workers_pages/_worker%E6%98%8E.js
+          # 1. 下载上游已混淆的 _worker.js
+          wget --tries=3 --timeout=30 -O origin.js https://raw.githubusercontent.com/yonggekkk/Cloudflare-vless-trojan/refs/heads/main/Vless_workers_pages/_worker.js
 
           # 2. 校验下载
           if [ ! -s origin.js ]; then
@@ -38,34 +30,16 @@ jobs:
             exit 1
           fi
 
-          # 3. 替换 UUID
-          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g' origin.js
+          # 3. 替换 UUID 与 proxyIPs
+          sed -i 's/86c50e3a-5b87-49dd-bd20-03c7f2735e40/06c30f4d-99c9-4bc6-84ce-d992213a469c/g; s/pyip.ygkkk.dpdns.org/p.etime.vip/g' origin.js
 
           # 4. 校验替换
           grep -q '06c30f4d-99c9-4bc6-84ce-d992213a469c' origin.js || { echo '::error::UUID 替换失败'; exit 1; }
+          grep -q 'p.etime.vip' origin.js || { echo '::error::proxyIPs 替换失败'; exit 1; }
 
-          # 5. 拆分：配置行（不混淆）与其余代码
-          sed -n '/^let userID/p' origin.js > header.txt
-          sed -n '/^const proxyIPs/p' origin.js >> header.txt
-          sed '/^let userID/d; /^const proxyIPs/d' origin.js > body.js
-
-          # 6. 混淆其余代码，保留对 userID/proxyIPs 的引用
-          javascript-obfuscator body.js --output body_obf.js \
-            --compact true \
-            --identifier-names-generator hexadecimal \
-            --rename-globals true \
-            --reserved-names 'userID,proxyIPs' \
-            --string-array true \
-            --string-array-encoding 'base64' \
-            --string-array-threshold 0.75 \
-            --transform-object-keys true \
-            --self-defending false \
-            --simplify true
-
-          # 7. 拼合：明文配置 + 混淆代码
-          cat header.txt body_obf.js > _worker.js
-          rm -f origin.js body.js body_obf.js header.txt
-          echo "混淆完成，_worker.js 大小：$(wc -c < _worker.js) 字节"
+          # 5. 替换 _worker.js
+          mv -f origin.js _worker.js
+          echo "处理完成，_worker.js 大小：$(wc -c < _worker.js) 字节"
 
       - name: 提交更改
         uses: stefanzweifel/git-auto-commit-action@v7
